@@ -1,9 +1,7 @@
 package net.beshkenze.androidsqlfactory.library;
 
-import net.beshkenze.androidsqlfactory.library.helper.From;
-import net.beshkenze.androidsqlfactory.library.helper.Join;
-import net.beshkenze.androidsqlfactory.library.helper.Limit;
-import net.beshkenze.androidsqlfactory.library.helper.Select;
+import android.database.DatabaseUtils;
+import net.beshkenze.androidsqlfactory.library.helper.*;
 import timber.log.Timber;
 
 import java.util.ArrayList;
@@ -15,8 +13,9 @@ import java.util.HashMap;
 public class SqlBuilder {
     private Select mSelect = new Select();
     private From mFrom = new From();
-    private ArrayList<Join> mJoins = new ArrayList<Join>();
+    private Join mJoin = new Join();
     private Limit mLimit = new Limit();
+    private Where mWhere = new Where();
 
     public SqlBuilder(String tableName) {
         getFrom().setTable(tableName);
@@ -43,18 +42,22 @@ public class SqlBuilder {
         return SqlBuilder.this;
     }
 
+    public SqlBuilder count(String field, String pseudo) {
+        return select("count(" + field + ")", pseudo);
+    }
+
     public SqlBuilder from(String tableName) {
         getFrom().setTable(tableName);
         return SqlBuilder.this;
     }
 
     public SqlBuilder join(String type, String tableName, String tableField, String targetField) {
-        addJoin(new Join(type, tableName, tableField, targetField));
+        getJoin().add(type, tableName, tableField, targetField);
         return SqlBuilder.this;
     }
 
     public SqlBuilder join(String type, String tableName[], String tableField, String targetField) {
-        addJoin(new Join(type, tableName, tableField, targetField));
+        getJoin().add(type, tableName, tableField, targetField);
         return SqlBuilder.this;
     }
 
@@ -74,11 +77,92 @@ public class SqlBuilder {
         return join(Join.INNER, tableName, tableField, targetField);
     }
 
-    public SqlBuilder where() {
+    public SqlBuilder where(String name, String exp, String value) {
+        switch (exp) {
+            default:
+                getWhere().addCondition(name + " " + exp + " " + DatabaseUtils.sqlEscapeString(value));
+                break;
 
-
-        return null;
+        }
+        return SqlBuilder.this;
     }
+
+
+    public SqlBuilder eq(String name, String value) {
+        where(name, Where.EQUAL, value);
+        return SqlBuilder.this;
+    }
+
+    public SqlBuilder ne(String name, String value) {
+        where(name, Where.NOT_EQUAL, value);
+        return SqlBuilder.this;
+    }
+
+    public SqlBuilder like(String name, String value) {
+        where(name, Where.LIKE, value);
+        return SqlBuilder.this;
+    }
+
+    public SqlBuilder notLike(String name, String value) {
+        where(name, Where.NOT_LIKE, value);
+        return SqlBuilder.this;
+    }
+
+    public SqlBuilder is(String name, String value) {
+        like(name, value);
+        return SqlBuilder.this;
+    }
+
+    public SqlBuilder isNot(String name, String value) {
+        notLike(name, value);
+        return SqlBuilder.this;
+    }
+
+    public SqlBuilder notContains(String name, String value) {
+        where(name, Where.NOT_LIKE, "%".concat(value).concat("%"));
+        return SqlBuilder.this;
+    }
+
+    public SqlBuilder contains(String name, String value) {
+        where(name, Where.LIKE, "%".concat(value).concat("%"));
+        return SqlBuilder.this;
+    }
+
+    public SqlBuilder leftContains(String name, String value) {
+        where(name, Where.LIKE, value.concat("%"));
+        return SqlBuilder.this;
+    }
+
+    public SqlBuilder rightContains(String name, String value) {
+        where(name, Where.LIKE, "%".concat(value));
+        return SqlBuilder.this;
+    }
+
+    public SqlBuilder gt(String name, String value) {
+        where(name, Where.GREATER_THAN, value);
+        return SqlBuilder.this;
+    }
+
+    public SqlBuilder gte(String name, String value) {
+        where(name, Where.GREATER_THAN_EQUAL, value);
+        return SqlBuilder.this;
+    }
+
+    public SqlBuilder lt(String name, String value) {
+        where(name, Where.LESS_THAN, value);
+        return SqlBuilder.this;
+    }
+
+    public SqlBuilder lte(String name, String value) {
+        where(name, Where.LESS_THAN_EQUAL, value);
+        return SqlBuilder.this;
+    }
+
+
+//    public SqlBuilder in(String name, String[] strings) {
+////        TODO
+//        return SqlBuilder.this;
+//    }
 
     public void save() {
 
@@ -100,24 +184,20 @@ public class SqlBuilder {
         mFrom = from;
     }
 
-    public ArrayList<Join> getJoins() {
-        return mJoins;
+    public Join getJoin() {
+        return mJoin;
     }
 
-    public void setJoins(ArrayList<Join> joins) {
-        mJoins = joins;
+    public void setJoin(Join join) {
+        mJoin = join;
     }
 
-    public void addJoin(Join join) {
-        mJoins.add(join);
+    public Where getWhere() {
+        return mWhere;
     }
 
-    public String getJoin() {
-        StringBuilder sql = new StringBuilder();
-        for (Join join : getJoins()) {
-            sql.append(join.toSql());
-        }
-        return sql.toString();
+    public void setWhere(Where where) {
+        mWhere = where;
     }
 
     public Limit getLimit() {
@@ -128,19 +208,16 @@ public class SqlBuilder {
         mLimit = limit;
     }
 
-    public void find() {
-        Timber.tag("SQL");
-        Timber.i("%s", toSql());
+    public String find() {
+        return toSql();
     }
 
-    public void one() {
+    public String one() {
         setLimit(new Limit("1"));
-        Timber.tag("SQL");
-        Timber.i("%s", toSql());
+        return toSql();
     }
 
     public String toSql() {
-        return getSelect().toSql() + getFrom().toSql() + getJoin() + getLimit().toSql().trim();
+        return getSelect().toSql() + getFrom().toSql() + getJoin().toSql() + getWhere().toSql() + getLimit().toSql().trim();
     }
-
 }
